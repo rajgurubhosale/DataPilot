@@ -8,3 +8,7 @@ wheels/
 
 # Virtual environments
 .venv
+.env
+future.md
+data
+src/dataanalyst_agent/backend
