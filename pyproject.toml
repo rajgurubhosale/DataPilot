@@ -7,7 +7,11 @@ authors = [
     { name = "rajgurubhosale", email = "rajguru007bhosale@gmail.com" }
 ]
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "pandas>=3.0.6",
+    "plotly>=7.1.0",
+    "streamlit>=1.66.0",
+]
 
 [project.scripts]
 dataanalyst-agent = "dataanalyst_agent:main"
