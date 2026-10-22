@@ -11,8 +11,8 @@ from fastapi.responses import JSONResponse
 router = APIRouter()
 
 @router.post("/upload_data")
-async def upload_dataset(file: UploadFile = File(...)):
-    contents = await file.read()  # bytes
+def upload_dataset(file: UploadFile = File(...)):
+    contents = file.file.read()  # bytes
 
     try:
         df = pd.read_csv(io.BytesIO(contents))

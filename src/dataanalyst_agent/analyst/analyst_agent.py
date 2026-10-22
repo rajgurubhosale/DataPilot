@@ -1,19 +1,22 @@
-from pydantic import BaseModel
 import re
-from src.dataanalyst_agent.analyst.prompt import SYSTEM_PROMPT
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_core.messages import SystemMessage,HumanMessage
 import os
-from langchain_groq import ChatGroq
-from .sandbox import SandBox
 import asyncio
+from dotenv import load_dotenv
+from pydantic import BaseModel
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.messages import SystemMessage, HumanMessage
+from langchain_groq import ChatGroq
+
+from .prompt import SYSTEM_PROMPT
+from .sandbox import SandBox
+
+load_dotenv()
 
 
-
-def extract_code(reply: str) -> str:
+def extract_code(reply: str):
     m = re.search(r"```python\s*(.*?)```", reply, re.DOTALL)
     if not m:
-        return False
+        return None
     return m.group(1).strip()
 
 model = ChatGroq(model="openai/gpt-oss-120b", temperature=0.3, api_key=os.getenv("GROQ_API_KEY"))
@@ -43,7 +46,12 @@ async def analysis_worker(state: dict, schema: str, columns: list[str],
             messages += [reply, HumanMessage("Reply with exactly one ```python code block.")]
             continue
 
-        res = await asyncio.to_thread(sandbox.run_code_in_sandbox, code, csv_path)
+        res = await asyncio.to_thread(
+            sandbox.run_code_in_sandbox,
+            code=code,
+            csv_path=csv_path,
+            timeout=30,
+        )
 
         if res["exit_code"] == 0:
             return {"success": True, "code": code, "stdout": res["stdout"], "attempts": attempt}
