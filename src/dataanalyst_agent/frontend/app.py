@@ -14,6 +14,8 @@ if st.button("Perform data analysis"):
             data = send_data_to_backend(file)
         if data:
             st.session_state["analysis"] = data
+            st.session_state['run_id'] = data['run_id']
+            
             st.switch_page("pages/basic_analysis.py")
     else:
         st.warning("Please upload a CSV file first.")

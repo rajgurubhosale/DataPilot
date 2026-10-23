@@ -7,10 +7,15 @@ import uuid
 import json
 from fastapi.responses import JSONResponse
 
+from dataanalyst_agent.config import read_config_file
+config = read_config_file()
+backend_cfg = config.get("backend-app", {})
 
-UPLOAD_DIR = Path("data")
+
+UPLOAD_DIR = Path(backend_cfg.get("data_dir", "data"))
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-MAX_BYTES = 25 * 1024 * 1024
+max_mb = backend_cfg.get("max_upload_size_mb", 25) 
+MAX_BYTES = max_mb * 1024 * 1024
 
 router = APIRouter()
 
@@ -18,7 +23,7 @@ router = APIRouter()
 def upload_dataset(request: Request,file: UploadFile = File(...)):
     contents = file.file.read()  # bytes
     if len(contents) > MAX_BYTES:
-        raise HTTPException(status_code=413, detail="File too large (max 25 MB)")
+        raise HTTPException(status_code=413, detail=f"File too large (max {max_mb} MB)")
 
     try:
         df = pd.read_csv(io.BytesIO(contents))
@@ -28,21 +33,27 @@ def upload_dataset(request: Request,file: UploadFile = File(...)):
     if df.empty:
         raise HTTPException(status_code=400, detail="CSV file is empty")
     
-    # Generate a unique name: e.g. "a1b2c3d4_churn.csv"
-    unique_name = f"{uuid.uuid4().hex[:8]}_{Path(file.filename).name}"
-    file_path = UPLOAD_DIR / unique_name
+    # "data/a1b2c3d4_churn/"
+    run_id = uuid.uuid4().hex[:8]
+    dataset_name = Path(file.filename).stem              
+    dataset_dir = UPLOAD_DIR / f"{run_id}_{dataset_name}"
+    dataset_dir.mkdir(parents=True, exist_ok=True)
+    
+    # data save
+    file_path = dataset_dir / Path(file.filename).name
+    
     try:
         with open(file_path, "wb") as f:
             f.write(contents)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error saving CSV: {str(e)}")
 
-    # Safely ensure datasets dict exists on app.state
+    # Store by run_id (isolated per upload)
+
     if not hasattr(request.app.state, "datasets"):
         request.app.state.datasets = {}
-    request.app.state.datasets["csv_path"] = str(file_path.resolve())
+    request.app.state.datasets[run_id] = str(file_path.resolve())
 
-    # state["df"] = df  # store in memory
     num_df = df.select_dtypes("number")
     summary = (
             json.loads(num_df.describe().T.reset_index().to_json(orient="records"))
@@ -65,6 +76,7 @@ def upload_dataset(request: Request,file: UploadFile = File(...)):
     columns = len(df.columns)
     
     result= {
+        "run_id": run_id,                              
         "message": "Dataset uploaded",
         "sample": df_head,
         "rows": rows,
