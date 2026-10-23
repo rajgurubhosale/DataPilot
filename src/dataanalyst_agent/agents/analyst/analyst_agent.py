@@ -31,13 +31,13 @@ class AnalystAgent:
     def __init__(self):
 
         self.model = ChatGroq(model="openai/gpt-oss-120b", temperature=0.3, api_key=os.getenv("GROQ_API_KEY"))
-        self.structured_model = self.model.with_structured_output(AnalysisCode)
+        self.structured_model = self.model.with_structured_output(AnalysisCode, method="json_schema")
 
         self.sandbox =  SandBox()
         
         self.prompt = ChatPromptTemplate.from_messages([
-            SystemMessage(content=SYSTEM_PROMPT),      # a message object, so {braces} in it aren't treated as variables
-            ("human", "{schema}\n\n## Your question\n{question}\nUse columns: {columns}"),
+            SystemMessage(content=SYSTEM_PROMPT),
+            ("human", "{schema}\n\n## Your question\n{question}\nSuggested chart: {chart_hint}\nUse columns: {columns}"),
         ])
 
         self.footer = FOOTER    
@@ -69,8 +69,12 @@ class AnalystAgent:
         schema = pd.read_csv(csv_path, nrows=2)[columns].dtypes.to_string()
 
         messages = self.prompt.format_messages(
-            schema=schema, question= plan.get("question"), columns=columns
+            schema=schema,
+            question=plan.get("question"),
+            columns=columns,
+            chart_hint=plan.get("chart_hint", "Pick the best fit chrat according to question")
         )
+
         last_error = ""
 
 
