@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from typing import Literal
 import io
 from langchain.agents import create_agent
 from .planner_prompt import PLANNER_PROMPT
@@ -12,10 +13,13 @@ load_dotenv()
 
 df = pd.read_csv(r'D:\DataAnalyst Agent\data\churn-bigml-80.csv')
 
+ChartHint = Literal["bar", "line", "scatter", "box", "histogram", "heatmap", "pareto"]
+
 class Question(BaseModel):
     question: str
     required_cols: list[str]
     why_it_matters: str
+    chart_hint: ChartHint = "bar"   
 
 class Plan(BaseModel):
     questions: list[Question]  
