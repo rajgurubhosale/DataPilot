@@ -1,14 +1,15 @@
+from langchain_core.tools import retriever
 import re
 import os
 from dotenv import load_dotenv
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.messages import SystemMessage, HumanMessage
+from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from langchain_groq import ChatGroq
 import pandas as pd
 from .prompt import SYSTEM_PROMPT
 from .sandbox import SandBox
 import json
-
+from .schemas import SubAgentOutput,AnalysisCode
 load_dotenv()
 
 
@@ -30,7 +31,8 @@ class AnalystAgent:
     def __init__(self):
 
         self.model = ChatGroq(model="openai/gpt-oss-120b", temperature=0.3, api_key=os.getenv("GROQ_API_KEY"))
-        
+        self.structured_model = self.model.with_structured_output(AnalysisCode)
+
         self.sandbox =  SandBox()
         
         self.prompt = ChatPromptTemplate.from_messages([
@@ -38,24 +40,29 @@ class AnalystAgent:
             ("human", "{schema}\n\n## Your question\n{question}\nUse columns: {columns}"),
         ])
 
-        self.footer = FOOTER
-
-    def extract_code(self,reply: str):
-        m = re.search(r"```python\s*(.*?)```", reply, re.DOTALL)
-        if not m:
-            return None
-        return m.group(1).strip()
+        self.footer = FOOTER    
+        
+    def clean_code(self, code: str) -> str:
+        m = re.search(r"```(?:python)?\s*(.*?)```", code, re.DOTALL)
+        return (m.group(1) if m else code).strip()
 
     def parse_result(self, stdout: str) -> dict:
         for line in stdout.splitlines():
             if line.startswith("__RESULT__"):
-                return json.loads(line.replace("__RESULT__", "", 1))
+                data = json.loads(line.replace("__RESULT__", "", 1))
+
+                if data.get("figure") is None:
+                    raise ValueError("`fig` was not defined. Build a Plotly figure named `fig`.")
+
+                facts = data.get("facts")
+                if not isinstance(facts, dict) or not facts.get("answer"):
+                    raise ValueError("`facts` must be a dict with a non-empty 'answer'.")
+
+                return data
         raise ValueError("No __RESULT__ line found in sandbox output")
 
 
-    ################
-    # THE HINT IS WRONG IT WILL MISLEAD THE LLM OUTPUT GENRATION OKAY!!
-    def analysis_worker(self, plan: dict, csv_path: str, max_attempts: int = 3) -> dict:
+    def analysis_worker(self, plan: dict, csv_path: str, max_attempts: int = 3) -> SubAgentOutput:
         
         columns = plan.get("columns")
 
@@ -68,12 +75,12 @@ class AnalystAgent:
 
 
         for attempt in range(1, max_attempts + 1):
-            reply = self.model.invoke(messages)
-            code = self.extract_code(reply.content)
+            reply = self.structured_model.invoke(messages)    # AnalysisCode object
 
-            if code is None:
-                last_error = "no code block in reply"
-                messages += [reply, HumanMessage("Reply with exactly one ```python code block.")]
+            code = self.clean_code(reply.code)
+            if not code:
+                last_error = "empty code"
+                messages += [HumanMessage("Return the full script in the `code` field as plain Python.")]
                 continue
 
             res = self.sandbox.run_code_in_sandbox(
@@ -86,17 +93,17 @@ class AnalystAgent:
             if res["exit_code"] == 0:
                 try:
                     data = self.parse_result(res["stdout"])
-                    return {
-                        "id": plan.get("id"),
-                        "question": plan.get("question"),
-                        "columns": columns,
-                        "success": True,
-                        "code": code,
-                        "figure": data["figure"],
-                        "facts": data["facts"],
-                        "attempts": attempt,
-                        "error": None,
-                    }
+                    return SubAgentOutput(
+                        id=plan.get("id"),
+                        question=plan.get("question") or plan.get("query"),
+                        columns=columns,
+                        success=True,
+                        code=code,
+                        figure=data["figure"],
+                        facts=data["facts"],
+                        attempts=attempt,
+                        error=None,
+                    )
                 except Exception as e:
                     last_error = f"Output problem: {e}"
             else:
@@ -107,20 +114,19 @@ class AnalystAgent:
             else:
                 hint =  "" 
 
-            messages += [reply, HumanMessage(
-                f"Your code failed (exit code {res['exit_code']}):\n{last_error}\n{hint}\n"
-                "Return the full corrected code in one ```python block."
-            )]
+            messages += [
+                    AIMessage(content=f"```python\n{code}\n```"),
+                    HumanMessage(f"{last_error}{hint}\nReturn the full corrected script in the `code` field."),
+                ]
+
 
         
-        return {
-            "id": plan.get("id"),
-            "question": plan.get("question"),
-            "columns": columns,
-            "success": False,
-            "code": code,
-            "figure": None,
-            "facts": None,
-            "attempts": max_attempts,
-            "error": last_error,
-        }
+        return SubAgentOutput(
+            id=plan.get("id"),
+            question=plan.get("question"),
+            columns=columns,
+            success=False,
+            code=code,
+            attempts=max_attempts,
+            error=last_error or "Max attempts exceeded",
+        )
