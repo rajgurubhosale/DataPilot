@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 import io
 from langchain.agents import create_agent
-from dataanalyst_agent.planner.planner_prompt import PLANNER_PROMPT
+from .planner_prompt import PLANNER_PROMPT
 import pandas as pd
 from langchain_groq import ChatGroq
 from dotenv import load_dotenv

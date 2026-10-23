@@ -1,12 +1,6 @@
+from __future__ import annotations
 from pydantic import BaseModel, Field, model_validator
 
-
-class PipelineOutput(BaseModel):
-    run_id: str
-    dataset: str
-    total_questions: int
-    successful: int
-    questions: dict[str, SubAgentOutput]
 
 class SubAgentOutput(BaseModel):
     question: str = Field(description="The question this worker answered")
@@ -25,6 +19,15 @@ class SubAgentOutput(BaseModel):
         if not self.success and not self.error:
             raise ValueError("success=False requires an error message")
         return self
+
+
+class PipelineOutput(BaseModel):
+    run_id: str
+    dataset: str
+    total_questions: int
+    successful: int
+    questions: dict[str, SubAgentOutput]
+
 
 
 class AnalysisCode(BaseModel):

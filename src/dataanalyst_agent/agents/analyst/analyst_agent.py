@@ -7,9 +7,9 @@ from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from langchain_groq import ChatGroq
 import pandas as pd
 from .prompt import SYSTEM_PROMPT
-from .sandbox import SandBox
+from dataanalyst_agent.sandbox.docker_sandbox import SandBox
 import json
-from .schemas import SubAgentOutput,AnalysisCode
+from dataanalyst_agent.pipeline.schemas import SubAgentOutput, AnalysisCode
 load_dotenv()
 
 

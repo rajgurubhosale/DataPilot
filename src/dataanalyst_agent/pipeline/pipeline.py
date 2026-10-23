@@ -9,7 +9,7 @@
 # and send this dashboard to the frontend and render
 import json
 from dataanalyst_agent.config import read_config_file
-from .analyst_agent import AnalystAgent
+from dataanalyst_agent.agents.analyst.analyst_agent import AnalystAgent
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 import os
