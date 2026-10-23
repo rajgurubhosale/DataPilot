@@ -1,9 +1,14 @@
 from pydantic import BaseModel, Field, model_validator
 
 
+class PipelineOutput(BaseModel):
+    run_id: str
+    dataset: str
+    total_questions: int
+    successful: int
+    questions: dict[str, SubAgentOutput]
 
 class SubAgentOutput(BaseModel):
-    id: int | str | None = Field(default=None, description="Question id, for example 'q1'")
     question: str = Field(description="The question this worker answered")
     columns: list[str] = Field(default_factory=list, description="Dataset columns used for this question")
     success: bool = Field(description="True if the code ran and produced a valid figure")

@@ -13,7 +13,7 @@ load_dotenv()
 df = pd.read_csv(r'D:\DataAnalyst Agent\data\churn-bigml-80.csv')
 
 class Question(BaseModel):
-    query: str
+    question: str
     required_cols: list[str]
     why_it_matters: str
 

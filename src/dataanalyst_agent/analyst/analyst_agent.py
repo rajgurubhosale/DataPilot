@@ -64,7 +64,7 @@ class AnalystAgent:
 
     def analysis_worker(self, plan: dict, csv_path: str, max_attempts: int = 3) -> SubAgentOutput:
         
-        columns = plan.get("columns")
+        columns = plan.get("required_cols")
 
         schema = pd.read_csv(csv_path, nrows=2)[columns].dtypes.to_string()
 
@@ -94,7 +94,6 @@ class AnalystAgent:
                 try:
                     data = self.parse_result(res["stdout"])
                     return SubAgentOutput(
-                        id=plan.get("id"),
                         question=plan.get("question") or plan.get("query"),
                         columns=columns,
                         success=True,
@@ -119,14 +118,14 @@ class AnalystAgent:
                     HumanMessage(f"{last_error}{hint}\nReturn the full corrected script in the `code` field."),
                 ]
 
-
         
         return SubAgentOutput(
-            id=plan.get("id"),
             question=plan.get("question"),
             columns=columns,
             success=False,
             code=code,
             attempts=max_attempts,
+            figure=None,   
+            facts=None,  
             error=last_error or "Max attempts exceeded",
         )
