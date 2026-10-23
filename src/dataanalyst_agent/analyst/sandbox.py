@@ -15,9 +15,9 @@ class SandBox:
         self.pids_limit = pids_limit
         self.tmpfs_size = tmpfs_size
         self.client = docker.from_env()
+        
 
-
-    def run_code_in_sandbox(self, code: str, csv_path: str = None, timeout: int = 30) -> dict:
+    def run_code_in_sandbox(self, code: str,footer:str, csv_path: str = None, timeout: int = 30) -> dict:
         """
         Run Python code safely in a Docker container.
 
@@ -36,7 +36,7 @@ class SandBox:
         code_file = Path(tmp_dir) / "script.py"
 
         with open(code_file, "w", encoding="utf-8") as f:
-            f.write(code)
+            f.write(code + "\n" + footer)
 
         volumes = {
             str(code_file.parent): {"bind": "/sandbox", "mode": "ro"},
