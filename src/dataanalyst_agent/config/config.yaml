@@ -1,3 +1,7 @@
 backend-app:
   data_dir: "data"
   max_upload_size_mb: 25
+
+pipeline:
+  max_workers: 4
+  output_filename: "final_output.json"
