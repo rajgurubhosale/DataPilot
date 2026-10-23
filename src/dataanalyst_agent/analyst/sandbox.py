@@ -14,8 +14,12 @@ class SandBox:
         self.mem_limit = mem_limit
         self.pids_limit = pids_limit
         self.tmpfs_size = tmpfs_size
-        self.client = docker.from_env()
-        
+        try:
+            self.client = docker.from_env()
+            self.client.ping()
+        except Exception:
+            raise ConnectionError("Docker is not running. Please start Docker Desktop before running the pipeline.")
+
 
     def run_code_in_sandbox(self, code: str,footer:str, csv_path: str = None, timeout: int = 30) -> dict:
         """
