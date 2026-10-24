@@ -16,8 +16,15 @@ load_dotenv()
 
 FOOTER = """
 import json
+
+if "fig" in globals() and fig is not None:
+    fig.layout.template = None
+    fig_json = json.loads(fig.to_json())
+else:
+    fig_json = None
+
 __res__ = {
-    "figure": json.loads(fig.to_json()) if "fig" in globals() and fig is not None else None,
+    "figure": fig_json,
     "facts": facts if "facts" in globals() else {}
 }
 print("__RESULT__" + json.dumps(__res__))
@@ -55,6 +62,10 @@ class AnalystAgent:
 
                 if data.get("figure") is None:
                     raise ValueError("`fig` was not defined. Build a Plotly figure named `fig`.")
+
+                # Ensure layout.template is clean (Streamlit applies its own theme)
+                if isinstance(data["figure"], dict) and "layout" in data["figure"]:
+                    data["figure"]["layout"].pop("template", None)
 
                 facts = data.get("facts")
                 if not isinstance(facts, dict) or not facts.get("answer"):

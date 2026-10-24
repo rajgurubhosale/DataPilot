@@ -41,7 +41,7 @@ Write a complete Python script that:
 - Both axes are labeled with units (for example "Revenue (USD)", "Churn rate (%)"). Use `%` formatting for rates and thousands separators for big numbers.
 - Follow the "Suggested chart" if one is given. If the data makes it unreadable or impossible, use the closest meaningful alternative and say so in `caveats`.
 - Default chart choice when no hint is given: line for trends, sorted horizontal bar for category comparisons, histogram or box for distributions, scatter for relationships between two numbers.
-- Aggregate BEFORE plotting. Never plot more than about 5,000 points (sample with a fixed `random_state` if needed).
+- Aggregate BEFORE plotting. For distributions (box, histogram) and scatter plots, limit plotting rows to at most 400 points (e.g. `df.sample(min(400, len(df)), random_state=42)`) so the figure payload remains lightweight and responsive for the dashboard.
 - Readability:
   - Horizontal bars: sort so the largest bar is at the top, and add value labels (`text` with a clean format).
   - Show the top 15 categories. For totals and counts, group the rest as "Other". For rates and averages, do not create an "Other" bar; just show the top 15 (after the minimum group size filter).
