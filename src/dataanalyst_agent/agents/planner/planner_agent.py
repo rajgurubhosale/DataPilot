@@ -4,7 +4,7 @@ import io
 from langchain.agents import create_agent
 from .planner_prompt import PLANNER_PROMPT
 import pandas as pd
-from langchain_groq import ChatGroq
+from dataanalyst_agent.models import get_model
 from dotenv import load_dotenv
 import os
 
@@ -47,12 +47,7 @@ def read_feature_info(df):
         "nan_pct": nan_pct.to_dict(),
     }
 
-model = ChatGroq(
-    model="openai/gpt-oss-120b",
-    temperature=0.3,
-    api_key=os.getenv("GROQ_API_KEY")
-    
-)
+model = get_model()
 
 def plan_questions(df, model, target):
     profile = read_feature_info(df)
@@ -60,10 +55,9 @@ def plan_questions(df, model, target):
     prompt = PLANNER_PROMPT.format(
         description=profile,
         target_variable=target,
-        
     )
     
-    structured_model = model.with_structured_output(Plan, method="json_schema")
+    structured_model = model.with_structured_output(Plan)
     result = structured_model.invoke(prompt)
 
     return result

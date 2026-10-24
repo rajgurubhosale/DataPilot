@@ -5,7 +5,7 @@ import os
 from dotenv import load_dotenv
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
-from langchain_groq import ChatGroq
+from dataanalyst_agent.models import get_model
 import pandas as pd
 from .prompt import SYSTEM_PROMPT
 from dataanalyst_agent.sandbox.docker_sandbox import SandBox
@@ -38,11 +38,11 @@ class AnalystAgent:
     """
     def __init__(self):
 
-        self.model = ChatGroq(model="openai/gpt-oss-120b", temperature=0.3, api_key=os.getenv("GROQ_API_KEY"), max_retries=6)
+        self.model = get_model()
         self.parser = PydanticOutputParser(pydantic_object=AnalysisCode)
-        self.structured_model = self.model.with_structured_output(AnalysisCode, method="json_mode")
+        self.structured_model = self.model.with_structured_output(AnalysisCode)
 
-        self.sandbox =  SandBox()
+        self.sandbox = SandBox()
         
         self.prompt = ChatPromptTemplate.from_messages([
             SystemMessage(content=SYSTEM_PROMPT),
