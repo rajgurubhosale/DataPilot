@@ -12,5 +12,6 @@ def get_model():
         model=os.getenv("MESHAPI_MODEL_NAME"),
         api_key=os.getenv("MESHAPI_API_KEY"),
         base_url=os.getenv("MESHAPI_BASE_URL"),
+        max_retries=4,
         temperature=0.3
     )

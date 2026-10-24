@@ -12,6 +12,7 @@ from dataanalyst_agent.config import read_config_file
 from dataanalyst_agent.agents.analyst.analyst_agent import AnalystAgent
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
+from dataanalyst_agent.logger import logger
 import os
 from dotenv import load_dotenv
 
@@ -47,7 +48,11 @@ class AnalystDashboardPipeline:
             f"q{i}": r.model_dump() if hasattr(r, "model_dump") else r
             for i, r in enumerate(results, 1)
         }
-
+        
+        for q in questions_dict.values():
+            if isinstance(q.get("figure"), dict) and "layout" in q["figure"]:
+                q["figure"]["layout"].pop("template", None)
+        
         payload = {
             "run_id": self.run_id,
             "dataset": self.csv_name,
@@ -64,13 +69,19 @@ class AnalystDashboardPipeline:
     def run_all_questions(self, plan: list[dict]) -> dict:
 
         def run_single_question_sandbox(item):
-            
             if hasattr(item, "model_dump"):
                 item_dict = item.model_dump() 
             else:
-                item_dict =  item
+                item_dict = item
 
-            return self.agent.analysis_worker(item_dict, self.csv_path, max_attempts=3)
+            q_text = item_dict.get("question", "")[:50]
+            logger.info(f"-> [Docker] Starting: {q_text}...")
+
+            res = self.agent.analysis_worker(item_dict, self.csv_path, max_attempts=3)
+
+            status = "[PASS]" if res.success else f"[FAIL] ({res.error})"
+            logger.info(f"<- [Docker] Finished: {q_text} | {status} (Attempts: {res.attempts})")
+            return res
 
         with ThreadPoolExecutor(max_workers=self.max_workers) as pool:
             results = list(pool.map(run_single_question_sandbox, plan))
@@ -90,42 +101,21 @@ if __name__ == "__main__":
     import pandas as pd
     from dataanalyst_agent.agents.planner.planner_agent import plan_questions, model
 
-    # 1. Dataset path
     csv_file = Path("data/churn-bigml-80.csv").resolve()
     if not csv_file.exists():
         raise FileNotFoundError(f"CSV file not found: {csv_file}")
 
-    print(f"📊 Loading dataset: {csv_file.name}")
+    logger.info(f" Loading dataset: {csv_file.name}")
     df = pd.read_csv(csv_file)
 
-    # 2. Step 1: Use Planner Agent to generate strategic questions
-    target_column = "Churn"  # Change to your target column if needed
-    print(f"🧠 Step 1: Planner is analyzing profile and generating questions for target='{target_column}'...")
+    target_column = "Churn"
+    logger.info(f" Step 1: Planner is analyzing profile for target='{target_column}'...")
     plan = plan_questions(df=df, model=model, target=target_column)
+    logger.info(f" Step 1 Complete: Planner generated {len(plan.questions)} questions.")
 
-    print(f"\n🎯 Planner generated {len(plan.questions)} questions:")
-    for i, q in enumerate(plan.questions, 1):
-        print(f"  Q{i}: {q.question}")
-        print(f"      Columns: {q.required_cols}")
-        print(f"      Why it matters: {q.why_it_matters}\n")
-
-    # 3. Step 2: Initialize Pipeline & Execute Sub-Agents in Parallel
-    print("⚡ Step 2: Running Pipeline with Sub-Agents in Docker Sandbox...")
     pipeline = AnalystDashboardPipeline(run_id="exp_run_01", csv_path=csv_file)
-    
-    # Pass plan.questions directly into the pipeline
+    logger.info(f" Step 2: Running Pipeline across {pipeline.max_workers} Docker workers...")
     output = pipeline.run_all_questions(plan.questions)
 
-    # 4. Results summary
-    print("\n✅ --- Pipeline Run Complete ---")
-    print(f"Run ID          : {output['run_id']}")
-    print(f"File Saved      : {output['file_path']}")
-    print(f"Total Questions : {output['data']['total_questions']}")
-    print(f"Successful      : {output['data']['successful']}")
+    logger.info(f" Pipeline Complete! {output['data']['successful']}/{output['data']['total_questions']} successful. Saved to {output['file_path']}")
 
-    print("\n📈 Results per Question:")
-    for q_id, q_data in output["data"]["questions"].items():
-        status = "✅ PASS" if q_data.get("success") else "❌ FAIL"
-        print(f"  [{q_id}] {status} - Attempts: {q_data.get('attempts')}")
-        if q_data.get("facts"):
-            print(f"       Answer: {q_data['facts'].get('answer')}")

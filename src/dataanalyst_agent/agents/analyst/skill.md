@@ -3,8 +3,8 @@
 ## 1. Chart Type Selection Matrix
 - **Category vs Metric:** Horizontal Bar (`px.bar(orientation='h')`). Sort descending so the top value is at the top.
 - **Time Trend:** Line (`px.line`). Convert dates with `pd.to_datetime(..., errors='coerce')`.
-- **Distribution:** Histogram (`px.histogram(..., nbins=30)`) or Box Plot (`px.box`). If rows > 400, sample with `df.sample(min(400, len(df)), random_state=42)`.
-- **Two Metrics (Correlation):** Scatter (`px.scatter`). If rows > 400, sample with `df.sample(min(400, len(df)), random_state=42)`.
+- **Distribution:** Box Plot: precompute quartiles with `df.groupby(...).describe()` and draw with `go.Box(q1=..., median=..., q3=...)`. Histogram: pre-bin with `np.histogram` or `pd.cut` and draw with `go.Bar`. Never use `px.box` on raw rows.
+- **Two Metrics (Correlation):** Scatter (`px.scatter`). If rows > 1,000, sample with `df.sample(min(1000, len(df)), random_state=42)` and state in caveats.
 - **Composition / Share:** Donut chart (`px.pie(..., hole=0.4)`), ONLY if <= 5 categories. Otherwise, use horizontal bar.
 
 ## 2. Clean Data Transformations

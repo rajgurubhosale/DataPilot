@@ -11,6 +11,7 @@ from .prompt import SYSTEM_PROMPT
 from dataanalyst_agent.sandbox.docker_sandbox import SandBox
 import json
 from dataanalyst_agent.pipeline.schemas import SubAgentOutput, AnalysisCode
+from .guardrails import validate_result
 load_dotenv()
 
 
@@ -70,6 +71,11 @@ class AnalystAgent:
                 facts = data.get("facts")
                 if not isinstance(facts, dict) or not facts.get("answer"):
                     raise ValueError("`facts` must be a dict with a non-empty 'answer'.")
+
+                # Guardrail: check figure traces, size, and facts quality
+                val_error = validate_result(data["figure"], facts)
+                if val_error:
+                    raise ValueError(val_error)
 
                 return data
         raise ValueError("No __RESULT__ line found in sandbox output")

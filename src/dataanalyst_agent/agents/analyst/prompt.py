@@ -28,12 +28,43 @@ Write a complete Python script that:
 
 ## Code quality
 - Count rows before and after cleaning and report the difference in `caveats`.
-- Guard against empty results: if cleaning leaves no rows, still create a `fig` (an empty figure with an explanatory title) and explain in `caveats`.
 - Use `groupby(..., observed=True)` and `pd.cut(..., duplicates="drop")` / `pd.qcut(..., duplicates="drop")` so binning never crashes.
-- Treat 0/1, Yes/No, True/False outcome columns as rates: map them to 1/0 first, then take the mean (as a percentage).
 - Rates and averages from tiny groups are noisy. Require a minimum group size (for example at least 10 rows) and mention the cutoff in `caveats`.
 - Never divide by a possibly-zero total without checking.
 - Convert every value that goes into `facts` with `float()`, `int()` or `str()`.
+
+## Safe conversions
+- Boolean/flag columns: use this helper, never .map() with string keys directly:
+  ```python
+  def to_flag(s):
+      if s.dtype == bool: return s.astype(int)
+      m = {"true":1,"false":0,"yes":1,"no":0,"y":1,"n":0,"1":1,"0":0}
+      return s.astype(str).str.strip().str.lower().map(m)
+  ```
+- After ANY map/convert/to_numeric, if more than 20% of the column became NaN, or no rows
+  remain after dropna, raise ValueError(f"<column> conversion failed: dtype={s.dtype}, sample={s.head(3).tolist()}").
+  Do NOT return an empty figure in that case; crash loudly so the error can be diagnosed and corrected.
+
+## Keep figures small (the figure is sent to a browser as JSON)
+- Never pass a raw dataframe with more than 500 rows to any px.* call, and never
+  build a trace from a raw column with more than 1,000 values.
+- box: precompute q1/median/q3/fences per group and draw with go.Box. Do NOT use px.box on raw rows.
+  Example pattern:
+  ```python
+  g = df.groupby("Churn label")["Account length"]
+  s = g.describe(percentiles=[.25, .5, .75])
+  iqr = s["75%"] - s["25%"]
+  fig = go.Figure(go.Box(
+      x=s.index.tolist(),
+      q1=s["25%"].tolist(), median=s["50%"].tolist(), q3=s["75%"].tolist(),
+      lowerfence=np.maximum(s["min"], s["25%"] - 1.5*iqr).tolist(),
+      upperfence=np.minimum(s["max"], s["75%"] + 1.5*iqr).tolist(),
+      mean=s["mean"].tolist(),
+  ))
+  ```
+- histogram: compute np.histogram (or pd.cut + value_counts) and draw with go.Bar.
+- scatter: aggregate or sample at most 1,000 points with random_state=42, and state the sampling in caveats.
+- Bar, line, and heatmap charts must be fed already-aggregated data.
 
 ## `fig`
 - A Plotly figure with `template="plotly_white"` and `height=450` (set both with `fig.update_layout`).
@@ -41,14 +72,13 @@ Write a complete Python script that:
 - Both axes are labeled with units (for example "Revenue (USD)", "Churn rate (%)"). Use `%` formatting for rates and thousands separators for big numbers.
 - Follow the "Suggested chart" if one is given. If the data makes it unreadable or impossible, use the closest meaningful alternative and say so in `caveats`.
 - Default chart choice when no hint is given: line for trends, sorted horizontal bar for category comparisons, histogram or box for distributions, scatter for relationships between two numbers.
-- Aggregate BEFORE plotting. For distributions (box, histogram) and scatter plots, limit plotting rows to at most 400 points (e.g. `df.sample(min(400, len(df)), random_state=42)`) so the figure payload remains lightweight and responsive for the dashboard.
 - Readability:
   - Horizontal bars: sort so the largest bar is at the top, and add value labels (`text` with a clean format).
   - Show the top 15 categories. For totals and counts, group the rest as "Other". For rates and averages, do not create an "Other" bar; just show the top 15 (after the minimum group size filter).
   - Shorten very long category labels (about 25 characters) and keep them readable.
   - Use one clear color, and highlight the key bar or point only when it supports the finding.
   - Add hover details that match the plotted numbers.
-- `fig` must always exist. If the columns cannot fully answer the question, plot the closest meaningful view and explain the limit in `facts["caveats"]`.
+- `fig` must always exist and must contain valid data traces. If the columns cannot fully answer the question, plot the closest meaningful view and explain the limit in `facts["caveats"]`.
 
 ## Special chart types
 - heatmap: pivot two dimensions (bucket numeric ones with `pd.cut` / `pd.qcut`), plot with `px.imshow` or `go.Heatmap`, show the cell values as text, label both axes, and blank out cells with fewer than about 10 rows instead of showing noisy values.
