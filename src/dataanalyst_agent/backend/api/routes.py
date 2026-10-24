@@ -1,16 +1,18 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException,Request
 import pandas as pd
 import io
+from .schemas import DashboardRequest
 from pathlib import Path
 import uuid
-
+from dataanalyst_agent.pipeline import AnalystDashboardPipeline
+from dataanalyst_agent.agents.planner.planner_agent import plan_questions, model
 import json
 from fastapi.responses import JSONResponse
-
 from dataanalyst_agent.config import read_config_file
+
+
 config = read_config_file()
 backend_cfg = config.get("backend-app", {})
-
 
 UPLOAD_DIR = Path(backend_cfg.get("data_dir", "data"))
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
@@ -18,6 +20,12 @@ max_mb = backend_cfg.get("max_upload_size_mb", 25)
 MAX_BYTES = max_mb * 1024 * 1024
 
 router = APIRouter()
+
+
+@router.get('/')
+def welcome():
+    return {"msg":"welcome to AutoAnalyst Api"}
+
 
 @router.post("/upload_data")
 def upload_dataset(request: Request,file: UploadFile = File(...)):
@@ -88,3 +96,22 @@ def upload_dataset(request: Request,file: UploadFile = File(...)):
     }
     return JSONResponse(status_code=200, content=result)
 
+
+
+
+@router.post("/create_dashboard")
+def create_dashboard(request_body: DashboardRequest,request: Request):
+    datasets = getattr(request.app.state, "datasets", {})
+    csv_path = datasets.get(request_body.run_id)    
+    if not csv_path or not Path(csv_path).exists():
+            raise HTTPException(status_code=404, detail="Dataset not found for this run_id")
+
+    pipeline = AnalystDashboardPipeline(
+            run_id=request_body.run_id, 
+            csv_path=csv_path, 
+            target_column=request_body.target_column
+        )
+
+    result = pipeline.run()
+    
+    return JSONResponse(status_code=200, content=result["data"])
