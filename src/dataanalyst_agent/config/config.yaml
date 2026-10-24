@@ -3,5 +3,5 @@ backend-app:
   max_upload_size_mb: 25
 
 pipeline:
-  max_workers: 4
+  max_workers: 1
   output_filename: "final_output.json"

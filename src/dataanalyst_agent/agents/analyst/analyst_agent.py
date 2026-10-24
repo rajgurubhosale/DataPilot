@@ -1,3 +1,4 @@
+from langchain_core.output_parsers import PydanticOutputParser
 from langchain_core.tools import retriever
 import re
 import os
@@ -30,14 +31,15 @@ class AnalystAgent:
     """
     def __init__(self):
 
-        self.model = ChatGroq(model="openai/gpt-oss-120b", temperature=0.3, api_key=os.getenv("GROQ_API_KEY"))
-        self.structured_model = self.model.with_structured_output(AnalysisCode, method="json_schema")
+        self.model = ChatGroq(model="openai/gpt-oss-120b", temperature=0.3, api_key=os.getenv("GROQ_API_KEY"), max_retries=6)
+        self.parser = PydanticOutputParser(pydantic_object=AnalysisCode)
+        self.structured_model = self.model.with_structured_output(AnalysisCode, method="json_mode")
 
         self.sandbox =  SandBox()
         
         self.prompt = ChatPromptTemplate.from_messages([
             SystemMessage(content=SYSTEM_PROMPT),
-            ("human", "{schema}\n\n## Your question\n{question}\nSuggested chart: {chart_hint}\nUse columns: {columns}"),
+            ("human", "{schema}\n\n## Your question\n{question}\nSuggested chart: {chart_hint}\nUse columns: {columns}\n\n{format_instructions}"),
         ])
 
         self.footer = FOOTER    
@@ -72,15 +74,19 @@ class AnalystAgent:
             schema=schema,
             question=plan.get("question"),
             columns=columns,
-            chart_hint=plan.get("chart_hint", "Pick the best fit chrat according to question")
+            chart_hint=plan.get("chart_hint", "Pick the best fit chart according to question"),
+            format_instructions=self.parser.get_format_instructions()
         )
 
         last_error = ""
-
+        code = None
 
         for attempt in range(1, max_attempts + 1):
-            reply = self.structured_model.invoke(messages)    # AnalysisCode object
-
+            try:
+                reply = self.structured_model.invoke(messages)
+            except Exception as e:
+                last_error = f"LLM generation/parsing error: {e}"
+                continue
             code = self.clean_code(reply.code)
             if not code:
                 last_error = "empty code"

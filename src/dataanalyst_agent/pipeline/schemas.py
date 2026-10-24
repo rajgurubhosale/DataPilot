@@ -1,4 +1,4 @@
-from __future__ import annotations
+from typing import Annotated
 from pydantic import BaseModel, Field, model_validator
 
 
@@ -11,6 +11,8 @@ class SubAgentOutput(BaseModel):
     facts: dict | None = Field(default=None, description="answer, key_numbers, caveats; None on failure")
     attempts: int = Field(ge=0, le=10, description="How many attempts were used")
     error: str | None = Field(default=None, description="Last error message; None on success")
+    chart_hint: str | None = Field(default=None, description="Suggested chart type")
+    
 
     @model_validator(mode="after")
     def check_consistency(self):
@@ -27,7 +29,6 @@ class PipelineOutput(BaseModel):
     total_questions: int
     successful: int
     questions: dict[str, SubAgentOutput]
-
 
 
 class AnalysisCode(BaseModel):
