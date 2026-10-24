@@ -8,13 +8,16 @@
 # and pass this  code with the final agent that create dashboard:)
 # and send this dashboard to the frontend and render
 import json
-from dataanalyst_agent.config import read_config_file
-from dataanalyst_agent.agents.analyst.analyst_agent import AnalystAgent
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
-from dataanalyst_agent.logger import logger
 import os
+import pandas as pd
 from dotenv import load_dotenv
+
+from dataanalyst_agent.config import read_config_file
+from dataanalyst_agent.agents.analyst.analyst_agent import AnalystAgent
+from dataanalyst_agent.agents.planner.planner_agent import plan_questions, model as planner_model
+from dataanalyst_agent.logger import logger
 
 load_dotenv()
 
@@ -22,8 +25,9 @@ load_dotenv()
 class AnalystDashboardPipeline:
     """Run sub-agents and return the final dashboard code ready to post on UI."""
 
-    def __init__(self, run_id: str, csv_path: str | Path):
+    def __init__(self, run_id: str, csv_path: str | Path, target_column: str | None = None):
         self.agent = AnalystAgent()
+        self.target_column = target_column
 
         config = read_config_file()
         pipe_cfg = config.get("pipeline", {})
@@ -94,28 +98,28 @@ class AnalystDashboardPipeline:
             "data": payload,  # Full dictionary with {"q1": ..., "q2": ...}
         }
 
+    def run(self, target_column: str | None = None) -> dict:
+        """End-to-end execution: plans questions using PlannerAgent and executes sandbox analysis."""
+        target = target_column or self.target_column
+        if not target:
+            raise ValueError("target_column must be specified at initialization or passed to run().")
+
+        logger.info(f"Step 1: Planner is analyzing profile for target='{target}'...")
+        df = pd.read_csv(self.csv_path)
+        plan = plan_questions(df=df, model=planner_model, target=target)
+        logger.info(f"Step 1 Complete: Planner generated {len(plan.questions)} questions.")
+
+        logger.info(f"Step 2: Running Pipeline across {self.max_workers} Docker workers...")
+        return self.run_all_questions(plan.questions)
 
 
 if __name__ == "__main__":
-    from pathlib import Path
-    import pandas as pd
-    from dataanalyst_agent.agents.planner.planner_agent import plan_questions, model
-
     csv_file = Path("data/churn-bigml-80.csv").resolve()
     if not csv_file.exists():
         raise FileNotFoundError(f"CSV file not found: {csv_file}")
 
-    logger.info(f" Loading dataset: {csv_file.name}")
-    df = pd.read_csv(csv_file)
+    pipeline = AnalystDashboardPipeline(run_id="exp_run_01", csv_path=csv_file, target_column="Churn")
+    output = pipeline.run()
 
-    target_column = "Churn"
-    logger.info(f" Step 1: Planner is analyzing profile for target='{target_column}'...")
-    plan = plan_questions(df=df, model=model, target=target_column)
-    logger.info(f" Step 1 Complete: Planner generated {len(plan.questions)} questions.")
-
-    pipeline = AnalystDashboardPipeline(run_id="exp_run_01", csv_path=csv_file)
-    logger.info(f" Step 2: Running Pipeline across {pipeline.max_workers} Docker workers...")
-    output = pipeline.run_all_questions(plan.questions)
-
-    logger.info(f" Pipeline Complete! {output['data']['successful']}/{output['data']['total_questions']} successful. Saved to {output['file_path']}")
+    logger.info(f"Pipeline Complete! {output['data']['successful']}/{output['data']['total_questions']} successful. Saved to {output['file_path']}")
 
