@@ -21,6 +21,7 @@ if "analysis" in st.session_state:
     run_id = st.session_state["run_id"]
 
     st.divider()
+    st.page_link("pages/basic_analysis.py", label="📋 View Dataset Profile & Summary", icon="📋")
     
     columns = [col["column"] for col in data.get("profile", [])]
     target_column = st.selectbox("Select the target column to analyze:", options=columns)
@@ -32,4 +33,4 @@ if "analysis" in st.session_state:
                 st.session_state["dashboard"] = dashboard
                 st.session_state["target_column"] = target_column
                 st.success("Analysis complete!")
-                st.switch_page("pages/basic_analysis.py")
+                st.switch_page("pages/dashboard.py")

@@ -6,6 +6,11 @@ if "analysis" not in st.session_state:
     st.page_link("app.py", label="⬅ Back to upload")
     st.stop()
 
+col_nav1, col_nav2 = st.columns([1, 4])
+col_nav1.page_link("app.py", label="⬅ Back to upload")
+if "dashboard" in st.session_state:
+    col_nav2.page_link("pages/dashboard.py", label="📊 Go to AI Dashboard")
+
 data = st.session_state["analysis"]
 
 c1, c2, c3 = st.columns(3)
