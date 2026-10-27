@@ -14,21 +14,12 @@
 
 ```mermaid
 flowchart LR
-    A[("📄 CSV Dataset")] --> B["🧠 Planner Agent"]
-    B --> C["⚡ Analyst Workers"]
-    C -->|Run Code| D["🐳 Docker Sandbox"]
-    D -->|Error / Retry| C
-    D -->|Facts & Plotly Charts| E["🎯 Synthesizer Agent"]
-    E --> F["📊 Streamlit Dashboard"]
-
-    classDef default fill:#f8fafc,stroke:#64748b,stroke-width:1.5px;
-    classDef nodeHighlight fill:#eff6ff,stroke:#2563eb,stroke-width:2px;
-    classDef sandboxNode fill:#ecfdf5,stroke:#059669,stroke-width:2px;
-    classDef uiNode fill:#fff7ed,stroke:#ea580c,stroke-width:2px;
-
-    class B,C,E nodeHighlight;
-    class D sandboxNode;
-    class F uiNode;
+    A[(CSV dataset)] --> B[Planner agent]
+    B --> C[Analyst workers]
+    C -->|run code| D[Docker sandbox]
+    D -->|error / retry| C
+    D -->|facts + Plotly charts| E[Synthesizer agent]
+    E --> F[Streamlit dashboard]
 ```
 
 ---
