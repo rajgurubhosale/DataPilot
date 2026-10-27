@@ -111,17 +111,25 @@ if first and (first.get("facts") or {}).get("key_numbers"):
 
 insights = dash.get("executive_insights")
 if insights:
-    with st.expander("💡 Key findings", expanded=True):
-        st.markdown(f"**{insights.get('headline', '')}**")
-        for finding in insights.get("key_findings", []):
-            st.markdown(f"- {finding}")
-        if insights.get("actionable_insights"):
-            st.markdown("**Actionable Next Steps:**")
-            for action in insights.get("actionable_insights", []):
-                st.markdown(f"- {action}")
-else:
-    with st.expander("💡 Key findings", expanded=True):
-        pass
+    if insights.get("headline"):
+        st.info(f"🎯 **Executive Verdict:** {insights['headline']}")
+
+    col_findings, col_actions = st.columns([3, 2])
+    with col_findings:
+        with st.container(border=True):
+            st.markdown("#### 💡 Key Business Findings")
+            for finding in insights.get("key_findings", []):
+                st.markdown(f"- {finding}")
+
+    with col_actions:
+        with st.container(border=True):
+            st.markdown("#### 🚀 Actionable Next Steps")
+            actions = insights.get("actionable_insights", [])
+            if actions:
+                for action in actions:
+                    st.markdown(f"✅ {action}")
+            else:
+                st.caption("No specific action steps generated.")
 
 query = st.text_input("Search", placeholder="Search questions or findings…", label_visibility="collapsed").lower()
 groups: dict[str, list] = {}
