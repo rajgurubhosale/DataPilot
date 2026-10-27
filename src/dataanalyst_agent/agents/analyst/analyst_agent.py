@@ -98,6 +98,8 @@ class AnalystAgent:
         last_error = ""
         code = None
 
+        chart_hint = plan.get("chart_hint")
+
         for attempt in range(1, max_attempts + 1):
             try:
                 reply = self.structured_model.invoke(messages)
@@ -129,6 +131,7 @@ class AnalystAgent:
                         facts=data["facts"],
                         attempts=attempt,
                         error=None,
+                        chart_hint=chart_hint,
                     )
                 except Exception as e:
                     last_error = f"Output problem: {e}"
@@ -155,4 +158,5 @@ class AnalystAgent:
             figure=None,   
             facts=None,  
             error=last_error or "Max attempts exceeded",
+            chart_hint=chart_hint,
         )
