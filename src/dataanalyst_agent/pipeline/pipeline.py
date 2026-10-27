@@ -17,6 +17,7 @@ from dotenv import load_dotenv
 from dataanalyst_agent.config import read_config_file
 from dataanalyst_agent.agents.analyst.analyst_agent import AnalystAgent
 from dataanalyst_agent.agents.planner.planner_agent import plan_questions, model as planner_model
+from dataanalyst_agent.agents.SynthesizerAgent import synthesize
 from dataanalyst_agent.logger import logger
 
 load_dotenv()
@@ -68,7 +69,13 @@ class AnalystDashboardPipeline:
         with open(file_path, "w", encoding="utf-8") as f:
             json.dump(payload, f, indent=2)
 
-        return file_path,payload
+        insights = synthesize(file_path, target_col=self.target_column)
+        if insights:
+            payload["executive_insights"] = insights.model_dump()
+            with open(file_path, "w", encoding="utf-8") as f:
+                json.dump(payload, f, indent=2)
+
+        return file_path, payload
 
     def run_all_questions(self, plan: list[dict]) -> dict:
 

@@ -109,8 +109,19 @@ if first and (first.get("facts") or {}).get("key_numbers"):
         for col, (label, val) in zip(st.columns(len(kpis)), kpis):
             col.metric(label.replace("_", " ").title(), fmt(val))
 
-with st.expander("💡 Key findings", expanded=True):
-    pass
+insights = dash.get("executive_insights")
+if insights:
+    with st.expander("💡 Key findings", expanded=True):
+        st.markdown(f"**{insights.get('headline', '')}**")
+        for finding in insights.get("key_findings", []):
+            st.markdown(f"- {finding}")
+        if insights.get("actionable_insights"):
+            st.markdown("**Actionable Next Steps:**")
+            for action in insights.get("actionable_insights", []):
+                st.markdown(f"- {action}")
+else:
+    with st.expander("💡 Key findings", expanded=True):
+        pass
 
 query = st.text_input("Search", placeholder="Search questions or findings…", label_visibility="collapsed").lower()
 groups: dict[str, list] = {}

@@ -50,7 +50,8 @@ def synthesize(final_json_path: Path | str, target_col: str) -> ExecutiveInsight
         )
         result = get_model().with_structured_output(ExecutiveInsights).invoke(prompt)
 
-        out = path.with_name("executive_insights.json")   
+        out = path.with_name("executive_insights.json")
+        out.write_text(json.dumps(result.model_dump(), indent=2), encoding="utf-8")
         logger.info(f"Synthesizer: saved insights to '{out}'")
         return result
 
